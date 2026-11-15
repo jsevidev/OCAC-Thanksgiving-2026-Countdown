@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thanksgiving Countdown</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Layout: one centered column. A gold ring holds the day count, with the seconds-to-midnight row below it, then the theme, three detail cards and a scrolling ticker. A thin double gold frame echoes the poster. */
+:root {
+  --bg: #0a1230;
+  --bg-2: #14225a;
+  --gold: #d9a84e;
+  --gold-soft: #f1d59a;
+  --cream: #f6ecd2;
+  --muted: #a3acc9;
+  --line: rgba(217, 168, 78, 0.35);
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Jost", "Segoe UI", system-ui, sans-serif;
+  --ring: min(80vw, 370px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--body);
+  color: var(--cream);
+  background: radial-gradient(ellipse at 50% 22%, var(--bg-2) 0%, var(--bg) 62%) fixed, var(--bg);
+  overflow-x: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 0;
+}
+
+/* ambient layers */
+#sparks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.rays {
+  position: fixed; left: 50%; top: 34%; width: 170vmax; height: 170vmax; pointer-events: none; z-index: 0;
+  background: repeating-conic-gradient(from 0deg, rgba(217,168,78,.11) 0deg 5deg, transparent 5deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 46%);
+  mask-image: radial-gradient(circle, #000 0%, transparent 46%);
+  transform: translate(-50%, -50%);
+  animation: spin 160s linear infinite;
+}
+@keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+.frame { position: fixed; inset: 12px; border: 1px solid var(--line); pointer-events: none; z-index: 2; }
+.frame::after { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(217,168,78,.18); }
+
+main { position: relative; z-index: 1; max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 28px; padding-bottom: 28px; }
+
+.logo { width: 92px; height: 92px; object-fit: contain; animation: rise .9s .05s both cubic-bezier(.2,.7,.2,1); }
+.eyebrow { font-family: var(--display); font-weight: 500; font-size: clamp(.85rem, 2.6vw, 1.05rem); letter-spacing: .42em; text-transform: uppercase; color: var(--gold); margin: 0; padding-left: .42em; animation: rise .9s .15s both cubic-bezier(.2,.7,.2,1); }
+
+/* ring */
+.stage { position: relative; width: var(--ring); height: var(--ring); display: grid; place-items: center; animation: pop 1.1s .25s both cubic-bezier(.2,.8,.2,1); }
+.ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.ring .track { fill: none; stroke: rgba(217,168,78,.16); stroke-width: 2; }
+.ring .bar { fill: none; stroke: url(#goldGrad); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 8px rgba(217,168,78,.6)); }
+.ring .halo { fill: none; stroke: rgba(217,168,78,.10); stroke-width: 1; }
+.halo-pulse { position: absolute; inset: 7%; border-radius: 50%; border: 1px solid rgba(241,213,154,.35); animation: pulse 3.6s ease-out infinite; }
+.halo-pulse.b { animation-delay: 1.8s; }
+@keyframes pulse { from { transform: scale(.9); opacity: .8; } to { transform: scale(1.14); opacity: 0; } }
+
+.center { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.days { display: flex; font-family: var(--display); font-weight: 700; font-size: calc(var(--ring) * .36); line-height: 1; color: var(--gold-soft); text-shadow: 0 0 28px rgba(217,168,78,.45); }
+.dg { display: block; width: .78em; height: 1em; overflow: hidden; }
+.dg .col { display: flex; flex-direction: column; transition: transform 1.6s cubic-bezier(.16,.9,.2,1); transform: translateY(calc(var(--d, 0) * -1em)); }
+.dg .col span { display: block; height: 1em; line-height: 1; text-align: center; }
+.unit { font-family: var(--display); font-size: clamp(.8rem, 2.8vw, 1rem); letter-spacing: .5em; padding-left: .5em; text-transform: uppercase; color: var(--cream); }
+.big-word { display: none; font-family: var(--display); font-weight: 700; font-size: calc(var(--ring) * .17); line-height: 1.05; color: var(--gold-soft); text-shadow: 0 0 28px rgba(217,168,78,.45); max-width: 80%; }
+.stage[data-mode="today"] .days, .stage[data-mode="after"] .days { display: none; }
+.stage[data-mode="today"] .big-word, .stage[data-mode="after"] .big-word { display: block; animation: pop 1s both; }
+
+/* next-day clock */
+.clock { display: flex; flex-direction: column; align-items: center; gap: 10px; animation: rise .9s .5s both cubic-bezier(.2,.7,.2,1); }
+.clock small { font-size: .72rem; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
+.hms { display: flex; gap: 10px; align-items: center; }
+.cell { min-width: 74px; padding: 10px 8px 8px; border: 1px solid var(--line); background: rgba(10,18,48,.55); backdrop-filter: blur(4px); text-align: center; }
+.cell b { display: block; font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--cream); }
+.cell i { display: block; font-style: normal; font-size: .62rem; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); margin-top: 4px; }
+.flip { animation: tick .45s cubic-bezier(.2,.8,.2,1); }
+@keyframes tick { from { transform: translateY(-45%); opacity: 0; } to { transform: none; opacity: 1; } }
+.sep { color: var(--gold); font-family: var(--display); font-size: 1.5rem; opacity: .7; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .15; } }
+body.done .clock { display: none; }
+
+/* theme line */
+.theme { margin: 6px 0 0; max-width: 820px; font-family: var(--display); font-weight: 700; font-size: clamp(1.5rem, 5.2vw, 2.8rem); line-height: 1.2; text-wrap: balance; letter-spacing: .04em; text-transform: uppercase; }
+.theme span { display: inline-block; margin-right: .28em; opacity: 0; animation: rise .9s both cubic-bezier(.2,.7,.2,1); background: linear-gradient(100deg, var(--gold) 0%, var(--cream) 30%, var(--gold-soft) 50%, var(--gold) 70%, var(--cream) 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--gold-soft); animation: rise .9s both cubic-bezier(.2,.7,.2,1), shine 6s linear infinite; }
+@keyframes shine { to { background-position: -250% 0; } }
+.theme span:nth-child(1) { animation-delay: .7s, 0s; }
+.theme span:nth-child(2) { animation-delay: .8s, 0s; }
+.theme span:nth-child(3) { animation-delay: .9s, 0s; }
+.theme span:nth-child(4) { animation-delay: 1.15s, 0s; }
+.theme span:nth-child(5) { animation-delay: 1.25s, 0s; }
+.theme span:nth-child(6) { animation-delay: 1.35s, 0s; }
+.theme span:nth-child(7) { animation-delay: 1.45s, 0s; }
+
+/* details */
+.details { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 6px; }
+.card { min-width: 0; padding: 20px 18px; border: 1px solid var(--line); background: linear-gradient(160deg, rgba(20,34,90,.65), rgba(10,18,48,.55)); transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s, box-shadow .35s; animation: rise .9s both cubic-bezier(.2,.7,.2,1); }
+.card:nth-child(1) { animation-delay: 1.5s; } .card:nth-child(2) { animation-delay: 1.65s; } .card:nth-child(3) { animation-delay: 1.8s; }
+.card:hover { transform: translateY(-6px); border-color: var(--gold); box-shadow: 0 16px 36px -14px rgba(217,168,78,.45); }
+.card h3 { margin: 0 0 8px; font-weight: 500; font-size: .72rem; letter-spacing: .32em; text-transform: uppercase; color: var(--gold); }
+.card p { margin: 0; font-size: 1.12rem; font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
+.card p small { display: block; margin-top: 4px; font-size: .86rem; font-weight: 300; color: var(--muted); }
+
+.note { margin: 0; font-size: .78rem; letter-spacing: .08em; color: var(--muted); }
+
+/* ticker */
+.ticker { position: relative; z-index: 1; margin: 18px calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-right, 0px))); overflow: hidden; border-block: 1px solid var(--line); background: rgba(10,18,48,.7); padding-block: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+.track { display: flex; width: max-content; animation: marquee 38s linear infinite; }
+.track span { font-family: var(--display); font-size: .95rem; letter-spacing: .3em; text-transform: uppercase; color: var(--gold-soft); white-space: nowrap; padding-right: 1.6em; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+@keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 480px) {
+  body { padding-block-start: 32px; }
+  .cell { min-width: 64px; }
+  .cell b { font-size: 1.6rem; }
+  .hms { gap: 6px; }
+}
+:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .theme span { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="sparks" aria-hidden="true"></canvas>
+<div class="rays" aria-hidden="true"></div>
+<div class="frame" aria-hidden="true"></div>
+
+<main>
+  <img class="logo" id="logo" alt="Church logo" hidden>
+  <p class="eyebrow">Thanksgiving Celebration</p>
+
+  <div class="stage" id="stage" data-mode="count" role="timer" aria-live="off">
+    <div class="halo-pulse" aria-hidden="true"></div>
+    <div class="halo-pulse b" aria-hidden="true"></div>
+    <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
+      <defs>
+        <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f1d59a"/>
+          <stop offset="1" stop-color="#c4893a"/>
+        </linearGradient>
+      </defs>
+      <circle class="halo" cx="100" cy="100" r="98" />
+      <circle class="track" cx="100" cy="100" r="90" />
+      <circle class="bar" id="bar" cx="100" cy="100" r="90" />
+    </svg>
+    <div class="center">
+      <div class="days" id="days" aria-label="Days to go"></div>
+      <div class="big-word" id="bigWord"></div>
+      <div class="unit" id="unit">Days to go</div>
+    </div>
+  </div>
+
+  <div class="clock" id="clock">
+    <small>Next number in</small>
+    <div class="hms">
+      <div class="cell"><b id="hh">00</b><i>Hours</i></div>
+      <span class="sep">:</span>
+      <div class="cell"><b id="mm">00</b><i>Minutes</i></div>
+      <span class="sep">:</span>
+      <div class="cell"><b id="ss">00</b><i>Seconds</i></div>
+    </div>
+  </div>
+
+  <h1 class="theme" aria-label="For every grace, we give Him praise"><span>For</span><span>every</span><span>grace,</span><span>we</span><span>give</span><span>Him</span><span>praise</span></h1>
+
+  <section class="details" aria-label="Event details">
+    <div class="card"><h3>Date</h3><p>Sunday, December 13, 2026</p></div>
+    <div class="card"><h3>Venue</h3><p>Ozamiz City Alliance Church</p></div>
+  </section>
+
+  <p class="note">This page updates by itself. Dates follow Philippine time (GMT+8).</p>
+</main>
+
+<div class="ticker" aria-hidden="true">
+  <div class="track" id="track"></div>
+</div>
+
+<script>
+(function () {
+  var TZ_OFFSET = 8 * 3600000;               // Philippine time, no daylight saving
+  var DAY = 86400000;
+  var TARGET_DAY = Date.UTC(2026, 11, 13) / DAY; // Dec 13, 2026 as a calendar day
+
+  var stage = document.getElementById('stage');
+  var daysEl = document.getElementById('days');
+  var unitEl = document.getElementById('unit');
+  var bigWord = document.getElementById('bigWord');
+  var bar = document.getElementById('bar');
+  var hh = document.getElementById('hh'), mm = document.getElementById('mm'), ss = document.getElementById('ss');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ticker text, repeated to loop seamlessly */
+  var track = document.getElementById('track');
+  var unitHtml = '';
+  for (var i = 0; i < 8; i++) unitHtml += '<span>For every grace, we give Him praise &nbsp;&#10022;</span>';
+  track.innerHTML = unitHtml + unitHtml;
+
+  /* ring */
+  var R = 90, C = 2 * Math.PI * R;
+  bar.style.strokeDasharray = C;
+  function setRing(p) { bar.style.strokeDashoffset = C * (1 - p); }
+
+  /* rolling day digits */
+  var digitCols = [];
+  function buildDigits(len) {
+    daysEl.innerHTML = ''; digitCols = [];
+    for (var i = 0; i < len; i++) {
+      var d = document.createElement('span'); d.className = 'dg';
+      var col = document.createElement('span'); col.className = 'col';
+      for (var n = 0; n < 10; n++) { var s = document.createElement('span'); s.textContent = n; col.appendChild(s); }
+      d.appendChild(col); daysEl.appendChild(d); digitCols.push(col);
+    }
+  }
+  function showDays(n) {
+    var str = String(n);
+    while (str.length < 2) str = '0' + str;
+    if (digitCols.length !== str.length) buildDigits(str.length);
+    for (var i = 0; i < str.length; i++) digitCols[i].style.setProperty('--d', str.charAt(i));
+    daysEl.setAttribute('aria-label', n + (n === 1 ? ' day to go' : ' days to go'));
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function setTick(el, v) {
+    if (el.textContent === v) return;
+    el.textContent = v;
+    if (reduce) return;
+    el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip');
+  }
+
+  var started = false, lastDays = null;
+  function update() {
+    var now = Date.now() + TZ_OFFSET;          // shifted so UTC fields read as Philippine time
+    var dayIdx = Math.floor(now / DAY);
+    var left = TARGET_DAY - dayIdx;
+    var intoDay = now - dayIdx * DAY;
+    var toNext = DAY - intoDay;
+
+    if (left > 0) {
+      stage.setAttribute('data-mode', 'count');
+      document.body.classList.remove('done');
+      unitEl.textContent = left === 1 ? 'Day to go' : 'Days to go';
+      if (!started) {                                  // start at 00, then roll up to today's number
+        started = true; showDays(0);
+        setTimeout(function () { showDays(left); lastDays = left; }, 650);
+      } else if (left !== lastDays) { showDays(left); lastDays = left; }
+      setRing(intoDay / DAY);
+      setTick(hh, pad(Math.floor(toNext / 3600000)));
+      setTick(mm, pad(Math.floor(toNext / 60000) % 60));
+      setTick(ss, pad(Math.floor(toNext / 1000) % 60));
+    } else if (left === 0) {
+      stage.setAttribute('data-mode', 'today');
+      document.body.classList.add('done');
+      bigWord.textContent = 'Today';
+      unitEl.textContent = 'Join us. Give Him praise.';
+      setRing(1);
+    } else {
+      stage.setAttribute('data-mode', 'after');
+      document.body.classList.add('done');
+      bigWord.textContent = 'Thank you';
+      unitEl.textContent = 'For celebrating with us';
+      setRing(1);
+    }
+  }
+  update();
+  setInterval(update, 1000);
+
+  /* floating gold sparks */
+  var cv = document.getElementById('sparks'), ctx = cv.getContext('2d');
+  var W = 0, H = 0, DPR = 1, sparks = [];
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var count = Math.round(Math.min(70, Math.max(26, W * H / 20000)));
+    sparks = [];
+    for (var i = 0; i < count; i++) sparks.push(mk(true));
+  }
+  function mk(anywhere) {
+    return { x: Math.random() * W, y: anywhere ? Math.random() * H : H + 12, r: Math.random() * 2.2 + .6, vy: Math.random() * .35 + .12, vx: (Math.random() - .5) * .18, ph: Math.random() * 6.28 };
+  }
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    for (var i = 0; i < sparks.length; i++) {
+      var p = sparks[i];
+      if (!reduce) { p.y -= p.vy; p.x += p.vx + Math.sin(t / 1800 + p.ph) * .12; }
+      if (p.y < -12) sparks[i] = p = mk(false);
+      var a = .25 + .4 * (.5 + .5 * Math.sin(t / 700 + p.ph));
+      ctx.globalAlpha = a * .25; ctx.fillStyle = '#f1d59a';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 3.2, 0, 6.283); ctx.fill();
+      ctx.globalAlpha = a; ctx.fillStyle = '#f6e3b4';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (!reduce) requestAnimationFrame(draw);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  requestAnimationFrame(draw);
+})();
+</script>
+
+</body>
+</html>
